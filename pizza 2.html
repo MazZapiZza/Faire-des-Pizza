@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pizza App – Dimitri</title>
+
+<!-- PWA iPhone -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pizza App">
+
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAB0UlEQVR4Xu2aMW7DMAxFf0p9xS7oI7QO6iYlRZQW2pYzqD8yQpHMCcBzJ6ZJ0HhJ2b+PjCkDgAAAAAAAAAAAPxR0F5mS3m+8gDgDq2A5s3wZ9b1z4iC2xgPp1g0QZ6Y9A4l8cC6Gg8kF+9E0hV6zJp8M4YFJ9k4hVt1Z8Q7gA0k7gZ2Y7nB8K1Y1wM7k2gkF0Qq8k3k9g4i6YJpG8K4o5kH9kz2kqYb1R2wPZqC6bZk7F0b9h3k7oKJ1kCk7YkzB7Zg7nK6m4m8G1GJx2B6kZ9R9R+1A8wZJmZb9Zzq+5b0wYkX7c0Y2H7k1YJ2p6nZK5G4k5l0qJk5H5Y9o6p1s0o3p3wZ6E8k9H9H2s2Y1n+o0p3k6u7F7Zz+9qAAAAAAAAAAAAgL8N/wB4Qw5x+QAAAABJRU5ErkJggg==">
+
+<style>
+body {
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  margin:0; padding:16px; background:#f2f2f7; color:#111;
+}
+.container{max-width:420px;margin:auto}
+h1{text-align:center;margin-bottom:20px}
+.card{background:#fff;border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:0 8px 20px rgba(0,0,0,.08)}
+label{font-weight:600;display:block;margin-bottom:6px}
+select,input{width:100%;padding:14px;font-size:16px;border-radius:12px;border:1px solid #ccc}
+button{width:100%;padding:16px;font-size:17px;font-weight:bold;border-radius:14px;border:none;background:#ff3b30;color:#fff;box-shadow:0 6px 14px rgba(0,0,0,.2);margin-top:8px}
+pre{background:#1c1c1e;color:#0f0;padding:14px;border-radius:14px;font-size:14px;white-space:pre-wrap}
+.info{font-size:14px;color:#555;margin-top:6px}
+.small{font-size:13px;color:#666}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>🍕 Pizza App</h1>
+
+<div class="card">
+<label>Profil</label>
+<select id="profil" onchange="setProfil()">
+<option value="ete">☀️ Été</option>
+<option value="hiver">❄️ Hiver</option>
+<option value="manuel" selected>🧠 Manuel</option>
+</select>
+</div>
+
+<div class="card">
+<label>Température ambiante (°C)</label>
+<input type="number" id="tempAmb" value="20">
+<label>Température farine (°C)</label>
+<input type="number" id="tempFarine" value="20">
+<label>Facteur friction pétrin (°C)</label>
+<input type="number" id="friction" value="6">
+<label>Température eau conseillée (°C)</label>
+<input type="number" id="tempEau" readonly>
+</div>
+
+<div class="card">
+<label>Farine</label>
+<select id="farine" onchange="changerFarine()">
+<option value="caputo_pizzeria">Caputo Pizzeria</option>
+<option value="caputo_cuoco">Caputo Cuoco</option>
+<option value="caputo_nuvola">Caputo Nuvola</option>
+<option value="caputo_supernuvola">Caputo Super Nuvola</option>
+<option value="denti_anima">Denti Anima Verace</option>
+<option value="petra_0102">Petra 0102 HP</option>
+</select>
+<div id="farineInfo" class="info"></div>
+</div>
+
+<div class="card">
+<label>Hydratation (%)</label>
+<input type="number" id="hydratation" value="60">
+</div>
+
+<div class="card">
+<label>Nombre de pizzas</label>
+<input type="number" id="pizzas" value="4">
+<label>Poids pâton (g)</label>
+<input type="number" id="poids" value="280">
+</div>
+
+<div class="card">
+<label>Durée fermentation (heures)</label>
+<input type="number" id="duree" value="24">
+</div>
+
+<button onclick="calculer()">Calculer</button>
+<button onclick="exportPDF()">Exporter PDF</button>
+<button onclick="sauverRecette()">Sauver la recette</button>
+
+<div class="card">
+<pre id="fiche"></pre>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+const farines={
+caputo_pizzeria:{nom:"Caputo Pizzeria",hydra:60,w:"W260",abs:"55–60%"},
+caputo_cuoco:{nom:"Caputo Cuoco",hydra:62,w:"W300",abs:"60–62%"},
+caputo_nuvola:{nom:"Caputo Nuvola",hydra:65,w:"W280",abs:"63–65%"},
+caputo_supernuvola:{nom:"Caputo Super Nuvola",hydra:68,w:"W320",abs:"68–70%"},
+denti_anima:{nom:"Denti Anima Verace",hydra:62,w:"W280",abs:"60–62%"},
+petra_0102:{nom:"Petra 0102 HP",hydra:64,w:"W300",abs:"63–65%"}
+};
+
+function setProfil(){
+if(profil.value==="ete"){tempAmb.value=26;tempFarine.value=24}
+if(profil.value==="hiver"){tempAmb.value=16;tempFarine.value=16}
+}
+
+function changerFarine(){
+const f=farines[farine.value];
+hydratation.value=f.hydra;
+farineInfo.innerHTML=`W : <b>${f.w}</b> · Absorption : <b>${f.abs}</b>`;
+}
+
+function calculer(){
+const T=+tempAmb.value;
+const TF=+tempFarine.value;
+const F=+friction.value;
+const eauTemp=60-(T+TF+F)/3;
+tempEau.value=eauTemp.toFixed(1);
+
+const pizzasV=+pizzas.value;
+const poidsV=+poids.value;
+const hyd=+hydratation.value/100;
+const dureeV=+duree.value;
+
+const selPct=0.028;
+let levurePct=0.002*(20/T);
+
+const total=pizzasV*poidsV;
+const farineTot=total/(1+hyd+selPct);
+const eauTot=farineTot*hyd;
+const sel=farineTot*selPct;
+const levure=farineTot*levurePct*(24/dureeV);
+
+const f=farines[farine.value];
+
+fiche.textContent=
+`🍕 FICHE PROTOCOLE
+
+Farine : ${f.nom}
+W : ${f.w} | Absorption : ${f.abs}
+
+Temp. ambiante : ${T} °C
+Temp. farine : ${TF} °C
+Temp. eau : ${eauTemp.toFixed(1)} °C
+
+Hydratation : ${hyd*100} %
+Pizzas : ${pizzasV}
+Pâton : ${poidsV} g
+
+INGRÉDIENTS
+Farine : ${farineTot.toFixed(1)} g
+Eau : ${eauTot.toFixed(1)} g
+Sel : ${sel.toFixed(1)} g
+Levure : ${levure.toFixed(2)} g`;
+}
+
+function exportPDF(){
+const { jsPDF }=window.jspdf;
+const pdf=new jsPDF();
+pdf.text(fiche.textContent,10,10);
+pdf.save("Pizza-Protocole.pdf");
+}
+
+function sauverRecette(){
+localStorage.setItem("pizzaRecette",fiche.textContent);
+alert("Recette sauvegardée 👍");
+}
+
+changerFarine();
+</script>
+
+</body>
+</html>
